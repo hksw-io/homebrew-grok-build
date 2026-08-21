@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -89,16 +90,19 @@ class GrokBuildTapTests(unittest.TestCase):
         self.assertIn('zap rmdir: "~/.grok"', content)
 
     def test_checked_in_cask_matches_renderer(self) -> None:
-        release = updater.ReleaseInfo(
-            version="1.0.5",
-            sha256={
-                "arm": "3dfa7f04fbb5427a8fbead286591543aaecb478b3a0ab222c4329eca1a3b2f86",
-                "intel": "21cbb063c6167175ba00a67f64ac638af8f79a44aef816cfd5b4915c77528e60",
-                "arm64_linux": "1c1fe67d7c35497fb09f44a451f57acc3787add4c9aea2c56f5c7c75dc5ffcf1",
-                "x86_64_linux": "9ba87444e1819e8f6104adbbf4676a870c204380aa5c3e1c38a926c4ea677238",
-            },
-        )
         checked_in = (Path(__file__).resolve().parents[1] / "Casks" / "grok-build.rb").read_text()
+        version_match = updater.CASK_VERSION_RE.search(checked_in)
+        self.assertIsNotNone(version_match)
+        assert version_match is not None
+
+        sha256: dict[str, str] = {}
+        for key in updater.REQUIRED_ASSETS:
+            digest_match = re.search(rf"(?:sha256 )?{key}:\s+\"([0-9a-f]{{64}})\"", checked_in)
+            self.assertIsNotNone(digest_match)
+            assert digest_match is not None
+            sha256[key] = digest_match.group(1)
+
+        release = updater.ReleaseInfo(version=version_match.group(1), sha256=sha256)
         self.assertEqual(checked_in, updater.render_cask(release))
 
     def test_select_release_skips_downloads_when_tag_exists(self) -> None:
