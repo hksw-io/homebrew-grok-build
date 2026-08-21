@@ -1,15 +1,15 @@
 # Homebrew Tap for Grok Build
 
-Community-maintained Homebrew tap based on Homebrew's official `grok-build` cask and updated directly from xAI's stable release channel every 5 minutes.
+Community-maintained Homebrew tap based on Homebrew's official `grok-build` cask and updated directly from xAI's fast-moving `alpha` release channel every 5 minutes.
 
 ## Why This Exists
 
-The official Homebrew cask is the right default for most users, but its pull-request update cycle can lag behind xAI's releases. This tap keeps the official cask shape while checking xAI's `stable` marker every 5 minutes.
+The official Homebrew cask is the right default if you only want xAI's stable channel, but its pull-request update cycle and stable-only policy can lag behind newer Grok Build releases. This tap keeps the official cask shape while checking xAI's `alpha` marker every 5 minutes.
 
 Both casks install the same upstream binaries and expose the same commands. The difference is update cadence:
 
 - `brew install --cask grok-build` installs Homebrew's official cask
-- `brew install --cask hksw-io/grok-build/grok-build` installs this faster-moving stable-channel mirror
+- `brew install --cask hksw-io/grok-build/grok-build` installs this faster-moving alpha-channel mirror
 
 ## Install
 
@@ -31,11 +31,11 @@ export HOMEBREW_UPGRADE_GREEDY=1
 
 ## Version Policy
 
-This tap polls xAI's `stable` marker every 5 minutes. It does not track the separate `alpha` channel.
+This tap polls xAI's `alpha` marker every 5 minutes. The alpha channel is xAI's newest published Grok Build version and may move ahead of `stable`.
 
 The active cask follows a "highest seen wins" policy:
 
-- a newly observed higher stable version replaces `Casks/grok-build.rb`
+- a newly observed higher alpha-channel version replaces `Casks/grok-build.rb`
 - a newly observed lower version is still tagged and released in this repo, but does not downgrade the active cask
 - once a higher version has been published here, the tap will not move backward automatically
 
@@ -45,14 +45,14 @@ This matches the rollback protection used by the other HKSW fast-moving taps.
 
 This tap polls xAI's official release endpoints:
 
-- `https://x.ai/cli/stable`
+- `https://x.ai/cli/alpha`
 - `https://x.ai/cli/grok-<version>-<os>-<architecture>`
 
 xAI publishes four binaries used by the Homebrew cask: Apple Silicon macOS, Intel macOS, ARM64 Linux, and x86_64 Linux. Because the release service does not publish a checksum manifest, the updater streams each new binary through SHA-256 before rendering the cask. It does not retain the downloaded binaries.
 
-Each newly observed stable version:
+Each newly observed alpha-channel version:
 
-- creates a matching git tag such as `v1.0.5`
+- creates a matching git tag such as `v1.0.8`
 - creates a GitHub Release in `hksw-io/homebrew-grok-build`
 - updates `Casks/grok-build.rb` only if that version outranks the current active version
 

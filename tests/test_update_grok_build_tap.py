@@ -28,20 +28,20 @@ class GrokBuildTapTests(unittest.TestCase):
     def test_version_key_orders_newer_patch_release_higher(self) -> None:
         self.assertGreater(updater.version_key("1.0.5"), updater.version_key("1.0.4"))
 
-    def test_version_key_rejects_prerelease_for_stable_tap(self) -> None:
-        with self.assertRaisesRegex(ValueError, "Unsupported Grok Build release version"):
-            updater.version_key("1.0.6-alpha.1")
+    def test_version_key_supports_alpha_prereleases(self) -> None:
+        self.assertGreater(updater.version_key("1.0.8"), updater.version_key("1.0.8-alpha.1"))
+        self.assertGreater(updater.version_key("1.0.8-alpha.10"), updater.version_key("1.0.8-alpha.2"))
 
     def test_fetch_latest_version_uses_fallback_marker(self) -> None:
         with mock.patch.object(
             updater,
             "http_request_text",
-            side_effect=[RuntimeError("primary unavailable"), "1.0.5\n"],
+            side_effect=[RuntimeError("primary unavailable"), "1.0.8\n"],
         ) as request:
-            self.assertEqual(updater.fetch_latest_version(), "1.0.5")
+            self.assertEqual(updater.fetch_latest_version(), "1.0.8")
         self.assertEqual(
             [call.args[0] for call in request.call_args_list],
-            list(updater.STABLE_MARKER_URLS),
+            list(updater.ALPHA_MARKER_URLS),
         )
 
     def test_asset_urls_match_official_release_layout(self) -> None:
@@ -82,7 +82,7 @@ class GrokBuildTapTests(unittest.TestCase):
         self.assertIn('arch arm: "aarch64", intel: "x86_64"', content)
         self.assertIn('os macos: "macos", linux: "linux"', content)
         self.assertIn('url "https://x.ai/cli/grok-#{version}-#{os}-#{arch}"', content)
-        self.assertIn('url "https://x.ai/cli/stable"', content)
+        self.assertIn('url "https://x.ai/cli/alpha"', content)
         self.assertIn('target: "grok"', content)
         self.assertIn('target: "agent"', content)
         self.assertIn('generate_completions_from_executable', content)
@@ -123,7 +123,7 @@ class GrokBuildTapTests(unittest.TestCase):
 
     def test_release_body_links_official_marker_and_artifacts(self) -> None:
         body = updater.release_body(self.make_release(), active_version="1.0.5", cask_updated=True)
-        self.assertIn("https://x.ai/cli/stable", body)
+        self.assertIn("https://x.ai/cli/alpha", body)
         for platform in updater.REQUIRED_ASSETS.values():
             self.assertIn(f"https://x.ai/cli/grok-1.0.5-{platform}", body)
 

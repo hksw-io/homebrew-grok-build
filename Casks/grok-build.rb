@@ -14,8 +14,8 @@ cask "grok-build" do
   homepage "https://x.ai/build", browsed: "2026-08-13"
 
   livecheck do
-    url "https://x.ai/cli/stable"
-    regex(/^v?(\d+(?:\.\d+)+)$/i)
+    url "https://x.ai/cli/alpha"
+    regex(/^v?(\d+(?:\.\d+)+(?:-[a-z0-9_]+(?:\.[a-z0-9_]+)*)?)$/i)
   end
 
   binary "grok-#{version}-#{os}-#{arch}", target: "grok"

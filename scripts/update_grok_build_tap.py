@@ -28,9 +28,9 @@ GIT_USER_EMAIL = os.environ.get("GIT_USER_EMAIL")
 API_BASE = "https://api.github.com"
 PRIMARY_BASE_URL = "https://x.ai/cli"
 FALLBACK_BASE_URL = "https://storage.googleapis.com/grok-build-public-artifacts/cli"
-STABLE_MARKER_URLS = (
-    f"{PRIMARY_BASE_URL}/stable",
-    f"{FALLBACK_BASE_URL}/stable",
+ALPHA_MARKER_URLS = (
+    f"{PRIMARY_BASE_URL}/alpha",
+    f"{FALLBACK_BASE_URL}/alpha",
 )
 RETRYABLE_HTTP_CODES = {403, 408, 429, 500, 502, 503, 504}
 REQUIRED_ASSETS = {
@@ -39,8 +39,13 @@ REQUIRED_ASSETS = {
     "arm64_linux": "linux-aarch64",
     "x86_64_linux": "linux-x86_64",
 }
-VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
+VERSION_RE = re.compile(
+    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"(?:-(?P<prerelease>[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*))?$"
+)
 CASK_VERSION_RE = re.compile(r'^\s*version "([^"]+)"', re.MULTILINE)
+PrereleaseIdentifierKey = tuple[int, int, str]
+VersionKey = tuple[int, int, int, int, tuple[PrereleaseIdentifierKey, ...]]
 
 
 @dataclass(frozen=True)
@@ -61,12 +66,12 @@ class ReleaseInfo:
         return REPO_ROOT / "Casks" / "grok-build.rb"
 
     @property
-    def version_key(self) -> tuple[int, int, int]:
+    def version_key(self) -> VersionKey:
         return version_key(self.version)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Mirror Grok Build stable-channel releases into this tap.")
+    parser = argparse.ArgumentParser(description="Mirror Grok Build alpha-channel releases into this tap.")
     parser.add_argument("--dry-run", action="store_true", help="Do not write files, commit, push, or create releases.")
     parser.add_argument("--verbose", action="store_true", help="Print extra progress information.")
     return parser.parse_args()
@@ -213,14 +218,14 @@ def api_request(path: str, token: str | None, method: str = "GET", data: dict[st
 
 def fetch_latest_version() -> str:
     errors: list[str] = []
-    for marker_url in STABLE_MARKER_URLS:
+    for marker_url in ALPHA_MARKER_URLS:
         try:
             version = http_request_text(marker_url).strip()
             version_key(version)
             return version
         except (RuntimeError, ValueError) as exc:
             errors.append(str(exc))
-    raise RuntimeError("Could not fetch a valid Grok Build stable marker: " + "; ".join(errors))
+    raise RuntimeError("Could not fetch a valid Grok Build alpha marker: " + "; ".join(errors))
 
 
 def asset_urls(version: str, platform: str) -> tuple[str, str]:
@@ -254,15 +259,25 @@ def fetch_latest_release() -> ReleaseInfo:
     return ReleaseInfo(version=version, sha256={key: digests[key] for key in REQUIRED_ASSETS})
 
 
-def version_key(version: str) -> tuple[int, int, int]:
+def version_key(version: str) -> VersionKey:
     match = VERSION_RE.fullmatch(version)
     if match is None:
         raise ValueError(f"Unsupported Grok Build release version: {version}")
-    return (
-        int(match.group("major")),
-        int(match.group("minor")),
-        int(match.group("patch")),
-    )
+
+    major = int(match.group("major"))
+    minor = int(match.group("minor"))
+    patch = int(match.group("patch"))
+    prerelease = match.group("prerelease")
+    if prerelease is None:
+        return (major, minor, patch, 1, ())
+
+    prerelease_key: list[PrereleaseIdentifierKey] = []
+    for identifier in prerelease.split("."):
+        if identifier.isdigit():
+            prerelease_key.append((0, int(identifier), ""))
+        else:
+            prerelease_key.append((1, 0, identifier))
+    return (major, minor, patch, 0, tuple(prerelease_key))
 
 
 def release_outranks_active(release: ReleaseInfo, active_version: str | None) -> bool:
@@ -319,8 +334,8 @@ def render_cask(release: ReleaseInfo) -> str:
   homepage "https://x.ai/build", browsed: "2026-08-13"
 
   livecheck do
-    url "{PRIMARY_BASE_URL}/stable"
-    regex(/^v?(\\d+(?:\\.\\d+)+)$/i)
+    url "{PRIMARY_BASE_URL}/alpha"
+    regex(/^v?(\\d+(?:\\.\\d+)+(?:-[a-z0-9_]+(?:\\.[a-z0-9_]+)*)?)$/i)
   end
 
   binary "grok-#{{version}}-#{{os}}-#{{arch}}", target: "grok"
@@ -429,7 +444,7 @@ def stage_and_commit(path: Path, release: ReleaseInfo, verbose: bool) -> bool:
 
 
 def create_tag(tag_name: str, verbose: bool) -> None:
-    git("tag", "-a", tag_name, "-m", f"Mirror Grok Build stable-channel version {tag_name}")
+    git("tag", "-a", tag_name, "-m", f"Mirror Grok Build alpha-channel version {tag_name}")
     debug(verbose, f"Created tag {tag_name}.")
 
 
@@ -445,9 +460,9 @@ def push_updates(tag_name: str, token: str, push_branch: bool, verbose: bool) ->
 
 def release_body(release: ReleaseInfo, *, active_version: str, cask_updated: bool) -> str:
     lines = [
-        f"Tap mirror of Grok Build stable-channel version `{release.version}`.",
+        f"Tap mirror of Grok Build alpha-channel version `{release.version}`.",
         "",
-        f"- Stable marker: {STABLE_MARKER_URLS[0]}",
+        f"- Alpha marker: {ALPHA_MARKER_URLS[0]}",
     ]
     for platform in REQUIRED_ASSETS.values():
         lines.append(f"- Artifact: {asset_urls(release.version, platform)[0]}")
