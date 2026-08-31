@@ -2,11 +2,11 @@ cask "grok-build" do
   arch arm: "aarch64", intel: "x86_64"
   os macos: "macos", linux: "linux"
 
-  version "1.0.14"
-  sha256 arm:          "90ef0f656cddd4ade316d3879af7b92927a07c4e2359d4f8f89af18b5e63d50d",
-         intel:        "126a60109228b07280e0bc119def2724a46e259fa8030f71fd71d24e2655cf39",
-         arm64_linux:  "d8a980e3f0e816a41b16dc01bceca7e3ca363cf3ed1341450b41a67613caf7bc",
-         x86_64_linux: "fbc010151c522e073f97f00fe20fe2bb531b3bd64ec60cd595c96f2fe392b880"
+  version "1.0.15"
+  sha256 arm:          "86ffac7a9547936f02e97dcd9a0ddb3f69486c7bac66ee9e1cbefc72d59b4635",
+         intel:        "87e3fe8cd2ed6687d5be8fbad5c1e8ab123561ee2f626898fce14ca1adbad8d2",
+         arm64_linux:  "a9245ef79a01acba0b4b88cca7dfa333e61d94df31ca73a878f021b84ab5f8f2",
+         x86_64_linux: "530d9bb951171f8358861297a8c9157ce8a97b0414f14cb7cf38eccd2c9ce567"
 
   url "https://x.ai/cli/grok-#{version}-#{os}-#{arch}"
   name "Grok Build"
